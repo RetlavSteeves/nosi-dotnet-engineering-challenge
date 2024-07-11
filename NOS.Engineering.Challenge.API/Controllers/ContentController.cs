@@ -1,5 +1,5 @@
-using System.Net;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using NOS.Engineering.Challenge.API.Models;
 using NOS.Engineering.Challenge.Managers;
 
@@ -7,19 +7,21 @@ namespace NOS.Engineering.Challenge.API.Controllers;
 
 [Route("api/v1/[controller]")]
 [ApiController]
+[OutputCache]
 public class ContentController : Controller
 {
     private readonly IContentsManager _manager;
+
     public ContentController(IContentsManager manager)
     {
         _manager = manager;
     }
     
-    [HttpGet]
+    [Obsolete("Endpoint obsolete, instead use the new endpoint /api/v1/Content/Filter")]
+    [HttpGet]   
     public async Task<IActionResult> GetManyContents()
     {
         var contents = await _manager.GetManyContents().ConfigureAwait(false);
-
         if (!contents.Any())
             return NotFound();
         
@@ -68,20 +70,44 @@ public class ContentController : Controller
     }
     
     [HttpPost("{id}/genre")]
-    public Task<IActionResult> AddGenres(
+    public async Task<IActionResult> AddGenres(
         Guid id,
-        [FromBody] IEnumerable<string> genre
+        [FromBody] IEnumerable<string> genres
     )
     {
-        return Task.FromResult<IActionResult>(StatusCode((int)HttpStatusCode.NotImplemented));
+        var updatedContentWithGenres = await _manager.AddGenres(id, genres).ConfigureAwait(false);
+
+        return updatedContentWithGenres == null ? NotFound() : Ok(updatedContentWithGenres);
+
     }
     
     [HttpDelete("{id}/genre")]
-    public Task<IActionResult> RemoveGenres(
+    public  async Task<IActionResult> RemoveGenres(
         Guid id,
-        [FromBody] IEnumerable<string> genre
+        [FromBody] IEnumerable<string> genres
     )
+    { 
+        var updatedContentWithouGenresRemoved = await _manager.RemoveGenre(id, genres).ConfigureAwait(false);
+
+        return updatedContentWithouGenresRemoved == null ? NotFound() : Ok(updatedContentWithouGenresRemoved);
+    }
+
+    [HttpGet("Filter")]
+    public async Task<IActionResult> FilterContents([FromQuery] string title = "", string genre = "")
     {
-        return Task.FromResult<IActionResult>(StatusCode((int)HttpStatusCode.NotImplemented));
+        var contents = await _manager.GetManyContents().ConfigureAwait(false);
+
+        if (contents == null || !contents.Any())
+            return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(title))
+            contents = contents.Where(content => content.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(genre))
+            contents = contents.Where(content => content.GenreList.Any(g => g.Contains(genre, StringComparison.OrdinalIgnoreCase)));
+
+        return contents.Any() ? Ok(contents.ToList()) : 
+            NotFound("No content found with this filter(s)."); 
+                                                         
     }
 }

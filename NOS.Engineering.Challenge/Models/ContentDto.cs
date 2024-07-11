@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace NOS.Engineering.Challenge.Models;
 
 public class ContentDto
@@ -30,5 +32,7 @@ public class ContentDto
     public DateTime? StartTime { get; set; }
     public DateTime? EndTime { get; set; }
     public IEnumerable<string> GenreList { get; set; }
+    [Key]
+    public Guid Id { get; set;}
     
 }

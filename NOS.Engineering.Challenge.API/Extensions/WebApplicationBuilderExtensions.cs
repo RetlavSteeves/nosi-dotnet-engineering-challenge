@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using NOS.Engineering.Challenge.Database;
 using NOS.Engineering.Challenge.Managers;
@@ -27,9 +28,17 @@ public static class WebApplicationBuilderExtensions
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "Nos Challenge Api", Version = "v1" });
         });
 
+        serviceCollection.AddOutputCache(options =>
+        {
+            options.AddBasePolicy(builder => 
+                builder.Expire(TimeSpan.FromSeconds(300)));
+    
+        });
+
         serviceCollection
             .RegisterSlowDatabase()
-            .RegisterContentsManager();
+            .RegisterContentsManager()
+            .AddLogging();
         return webApplicationBuilder;
     }
 
@@ -38,9 +47,10 @@ public static class WebApplicationBuilderExtensions
         services.AddSingleton<IDatabase<Content, ContentDto>,SlowDatabase<Content, ContentDto>>();
         services.AddSingleton<IMapper<Content, ContentDto>, ContentMapper>();
         services.AddSingleton<IMockData<Content>, MockData>();
-
+        services.AddSingleton<DataContext>();
         return services;
     }
+
     
     private static IServiceCollection RegisterContentsManager(this IServiceCollection services)
     {
